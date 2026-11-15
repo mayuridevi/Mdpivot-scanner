@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Pivot Cross Scanner</title>
+<style>
+:root{--bg:#0b1020;--card:#121a30;--line:#222c48;--tx:#e6ebf8;--mut:#8592b5;--acc:#2f9bff;--up:#22c55e;--dn:#ef4444;--warn:#f59e0b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:60px}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--line)}
+h1{font-size:16px;margin:0}
+button{font:inherit;color:inherit}
+.ib{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.panel{margin:10px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.panel label,.lab{display:block;color:var(--mut);font-size:12px;margin:8px 0 5px}
+.panel label:first-child{margin-top:0}
+.ttl{font-weight:700;font-size:13.5px;margin-bottom:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:#0e1529;border:1px solid var(--line);border-radius:999px;padding:6px 11px;color:var(--tx);cursor:pointer}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.chip.lv.on{background:var(--up);border-color:var(--up)}
+.chip.sm{padding:4px 9px;font-size:12px}
+.lvr{padding:6px 0;border-bottom:1px solid var(--line)}
+.lvr:last-child{border-bottom:0}
+.lvn{font-size:12.5px;margin-bottom:4px;font-weight:600}
+.mag{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mag>div{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mut)}
+select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;width:100%}
+.marow{border:1px solid var(--line);border-radius:10px;margin:6px 0;background:#0e1529;overflow:hidden}
+.marow.on{border-color:var(--up)}
+.mah{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;font-size:13px}
+.mab{padding:2px 12px 12px;border-top:1px solid var(--line)}
+#status{margin:6px 14px;color:var(--mut);font-size:12px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#counts{margin:0 12px 6px;display:flex;flex-wrap:wrap;gap:6px}
+.cn{font-size:11.5px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 9px;color:var(--mut)}
+.cn b{color:var(--tx)}
+.cn.st{border-color:var(--warn);color:var(--warn)}
+.cn.st b{color:var(--warn)}
+#bar{height:3px;background:var(--line);margin:0 14px 6px;border-radius:3px;overflow:hidden}
+#bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.sec{margin:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.sh{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;cursor:pointer}
+.sh b{font-weight:600}
+.cnt{border-radius:999px;padding:2px 10px;font-weight:700;background:#0e1529;color:var(--mut)}
+.cnt.hit{background:rgba(34,197,94,.15);color:var(--up)}
+.sec.zero{opacity:.55}
+.rows{border-top:1px solid var(--line)}
+.r{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.r:last-child{border-bottom:0}
+.rl{min-width:0;flex:1}
+.rx{flex:0 0 100%}
+.r a{color:var(--tx);text-decoration:none;font-weight:600}
+.r small{color:var(--mut);display:block;font-size:11px}
+.pr{text-align:right;white-space:nowrap}
+.up{color:var(--up)}.dn{color:var(--dn)}
+.bs{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.b{font-size:11px;background:rgba(34,197,94,.13);color:var(--up);border-radius:6px;padding:2px 6px}
+.b.d{background:rgba(239,68,68,.13);color:var(--dn)}
+.b.m{background:rgba(47,155,255,.14);color:var(--acc)}
+.b i{font-style:normal;opacity:.85}
+.tg{font-size:10.5px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+.tg.st{border-color:var(--warn);color:var(--warn);font-weight:700}
+.msg{margin:14px;color:var(--mut);text-align:center}
+#set{display:none}#set.show{display:block}
+.note{color:var(--mut);font-size:11.5px;margin-top:6px}
+.prow{display:flex;gap:6px;align-items:center;margin:6px 0}
+.prow .chip{flex:1;text-align:left}
+.prow .ib{padding:6px 9px}
+.prow.dflt .chip{border-color:var(--warn)}
+.tools{display:flex;gap:6px;margin:6px 12px;flex-wrap:wrap}
+.mini{width:100%;max-width:380px;height:auto;display:block;margin-top:8px;background:#0e1529;border:1px solid var(--line);border-radius:10px}
+.mini line{stroke-width:1.2}
+.mini .cu{fill:var(--up);stroke:var(--up)}
+.mini .cd{fill:var(--dn);stroke:var(--dn)}
+.mini .lnb{stroke:var(--up);stroke-dasharray:5 3;stroke-width:1.6}
+.mini .lnl{stroke:var(--dn);stroke-dasharray:5 3;stroke-width:1.2}
+.mini .lnc{stroke:var(--acc);stroke-width:1}
+.mini .hm{fill:rgba(245,158,11,.14)}
+.mini .hb{fill:rgba(47,155,255,.14)}
+.mini .dc{fill:var(--acc)}
+.mini text{font:10px system-ui,sans-serif}
+.mini .tb{fill:var(--up);font-weight:700}
+.mini .tl{fill:var(--dn)}
+.mini .tc{fill:var(--acc);font-weight:700}
+.mini .tm{fill:var(--mut);font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 Pivot Cross Scanner</h1>
+  <div><button class="ib" id="gear">⚙ Settings</button></div>
+</header>
+
+<section class="panel" id="set">
+  <label>Cloudflare Worker URL (recommended: faster and more reliable)</label>
+  <input type="text" id="worker" placeholder="https://yourname.workers.dev  (blank = free public proxy)">
+  <label>Auto refresh</label>
+  <select id="auto"><option value="0">Off</option><option value="1">Every 1 min</option><option value="5">Every 5 min</option><option value="15">Every 15 min</option></select>
+  <div class="tools" style="margin:10px 0 0"><button class="ib" id="reload">🔄 Reload stock list / sectors</button></div>
+  <div class="note" id="ustat"></div>
+</section>
+
+<section class="panel" id="presets">
+  <label>Saved settings (tap a name to apply it and run the scan)</label>
+  <div id="plist"></div>
+  <div class="tools" style="margin:8px 0 0"><button class="ib" id="psave">💾 Save current settings</button></div>
+  <div class="note">💾 Update = overwrite that name with the current settings. ⭐ = apply automatically when the app opens. 🗑 = delete.</div>
+</section>
+
+<section class="panel">
+  <label>Scans (select one or more)</label><div class="chips" id="scans"></div>
+  <label>When more than one scan is selected</label><div class="chips" id="scomb"></div>
+  <div class="note" id="scnote"></div>
+</section>
+
+<section class="panel">
+  <label>Universe</label><div class="chips" id="uni"></div>
+  <label>View</label><div class="chips" id="view"></div>
+</section>
+
+<section class="panel" id="bx-pivot">
+  <div class="ttl">Pivot Scan</div>
+  <label>Latest Close timeframe</label><div class="chips" id="ctf"></div>
+  <label>Conditions: tap a timeframe under each level and that timeframe's level is checked (you can select several)</label><div id="lv"></div>
+  <div class="mag" style="margin-top:10px">
+    <div>Direction<div class="chips" id="side"></div></div>
+    <div>Level from<div class="chips" id="lmode"></div></div>
+    <div>Multiple levels<div class="chips" id="comb"></div></div>
+  </div>
+</section>
+
+<section class="panel" id="bx-ma">
+  <div class="ttl">MA Scan</div>
+  <label>Latest Close timeframe</label><div class="chips" id="mtf"></div>
+  <label>Moving Average filters: tap an MA to open its options. Close is taken from the Latest Close timeframe above. All MAs with a condition must match together.</label>
+  <div id="ma"></div>
+  <div class="tools" style="margin:8px 0 0"><button class="ib" id="maadd">➕ Add another MA</button></div>
+</section>
+
+<section class="panel" id="bx-s2">
+  <div class="ttl">Stage 2</div>
+  <div class="note">Daily chart rules (Stage 2 uptrend): (1) Close above SMA 150 and SMA 200. (2) SMA 150 above SMA 200. (3) SMA 200 rising versus 1 month ago. (4) SMA 50 above SMA 150 and SMA 200. (5) Close above SMA 50. (6) Close at least 30% above the 52-week low. (7) Close within 25% of the 52-week high.</div>
+</section>
+
+<section class="panel" id="bx-ib">
+  <div class="ttl">Inside Bar</div>
+  <label>Chart timeframe</label><div class="chips" id="ibtf"></div>
+  <div class="note">Mother candle = the bigger candle. Baby candle(s) = the latest candle(s) completely inside the mother's high and low. Buy above the Mother High. The mini chart shows the mother, the baby, the buy line and the current price.</div>
+</section>
+
+<section class="panel" id="bx-vcp">
+  <div class="ttl">Stage 2 VCP (perfect flag)</div>
+  <div class="note">Daily chart. Rules: (1) Stage 2 uptrend. (2) Strong and smooth prior uptrend. (3) Good volume activity. (4) Orderly pullback, no loose or wide moves. (5) Base not deeper than the max depth. (6) Constructive base: length in range, close above SMA 50 and in the upper half of the base. (7) Young trend: 1st or 2nd flag. (8) Volume contracting from left to right.</div>
+  <div class="mag" id="vcpset" style="margin-top:8px"></div>
+  <label>Rules required to pass</label><div class="chips" id="vreq"></div>
+</section>
+
+<div id="status"></div>
+<div id="counts"></div>
+<div id="bar"><i></i></div>
+<div class="tools" id="tools"></div>
+<div id="res"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const cl=(x,a,b,d)=>{x=+x;return isFinite(x)?Math.min(b,Math.max(a,x)):d};
+const LVN={L3:'Camarilla L3',R3:'Camarilla R3',S1:'Pivot S1',R1:'Pivot R1'};
+const SCANS=[['pivot','Pivot Scan'],['ma','MA Scan'],['s2','Stage 2'],['ib','Inside Bar'],['vcp','Stage 2 VCP']];
+const SCN=Object.fromEntries(SCANS);
+const UNI=[['nifty50','Nifty 50'],['nifty200','Nifty 200'],['nifty500','Nifty 500'],['midcap250','Midcap 250'],['smallcap250','Smallcap 250'],['fno','F&O'],['all','All NSE']];
+const CTF=[['1m','1 min'],['5m','5 min'],['15m','15 min'],['30m','30 min'],['1h','1 hour'],['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
+const CTFV=CTF.map(x=>x[0]);
+const LTF=[['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
+const LTFS={'1D':'D','1W':'W','1M':'M','1Q':'Q','6M':'H','1Y':'Y'};
+const MAT={xa:'▲ Crossed Above',xb:'▼ Crossed Below',gte:'≥',lte:'≤'};
+const MAMODES=['off','xa','xb','gte','lte'];
+const MAOPT=[['off','Off'],['xa','Crossed Above (from below)'],['xb','Crossed Below (from above)'],['gte','Greater than or equal to (≥)'],['lte','Less than or equal to (≤)']];
+const MATYPES=[['sma','SMA'],['ema','EMA'],['hma','HMA']];
+const MATF=[['1D','Daily'],['1W','Weekly'],['1M','Monthly']];
+const TFN={'1D':'Daily','1W':'Weekly','1M':'Monthly'};
+const DEFMAS=[{k:'d20',id:'m1',type:'sma',n:20,tf:'1D'},{k:'d50',id:'m2',type:'sma',n:50,tf:'1D'},{k:'d200',id:'m3',type:'sma',n:200,tf:'1D'},{k:'w20',id:'m4',type:'sma',n:20,tf:'1W'},{k:'w200',id:'m5',type:'sma',n:200,tf:'1W'}];
+const NI='https://niftyindices.com/IndexConstituent/';
+const LISTS={
+ nifty500:[[NI+'ind_nifty500list.csv']],
+ nifty200:[[NI+'ind_nifty200list.csv']],
+ nifty50:[[NI+'ind_nifty50list.csv']],
+ midcap250:[[NI+'ind_niftymidcap250list.csv'],[NI+'ind_niftymidcap150list.csv',NI+'ind_niftysmallcap100list.csv']],
+ smallcap250:[[NI+'ind_niftysmallcap250list.csv']],
+ fno:[['https://nsearchives.nseindia.com/content/fo/fo_mktlots.csv'],['https://archives.nseindia.com/content/fo/fo_mktlots.csv']],
+ all:[['https://archives.nseindia.com/content/equities/EQUITY_L.csv'],['https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv']]};
+const ALIAS={'Fast Moving Consumer Goods':'FMCG','Information Technology':'IT','Automobile and Auto Components':'Auto','Oil Gas & Consumable Fuels':'Oil & Gas','Media Entertainment & Publication':'Media','Financial Services':'Financial Services','Telecommunication':'Telecom'};
+const FALLBACK=[['RELIANCE','Reliance Industries','Oil & Gas'],['TCS','TCS','IT'],['HDFCBANK','HDFC Bank','Financial Services'],['ICICIBANK','ICICI Bank','Financial Services'],['INFY','Infosys','IT'],['BHARTIARTL','Bharti Airtel','Telecom'],['ITC','ITC','FMCG'],['SBIN','State Bank of India','Financial Services'],['LT','Larsen & Toubro','Construction'],['HINDUNILVR','Hindustan Unilever','FMCG'],['KOTAKBANK','Kotak Mahindra Bank','Financial Services'],['AXISBANK','Axis Bank','Financial Services'],['BAJFINANCE','Bajaj Finance','Financial Services'],['MARUTI','Maruti Suzuki','Auto'],['SUNPHARMA','Sun Pharma','Healthcare'],['M&M','Mahindra & Mahindra','Auto'],['HCLTECH','HCL Tech','IT'],['NTPC','NTPC','Power'],['ULTRACEMCO','UltraTech Cement','Construction Materials'],['TITAN','Titan','Consumer Durables'],['ASIANPAINT','Asian Paints','Consumer Durables'],['BAJAJFINSV','Bajaj Finserv','Financial Services'],['POWERGRID','Power Grid','Power'],['ADANIENT','Adani Enterprises','Metals & Mining'],['ADANIPORTS','Adani Ports','Services'],['ONGC','ONGC','Oil & Gas'],['COALINDIA','Coal India','Oil & Gas'],['JSWSTEEL','JSW Steel','Metals & Mining'],['TATASTEEL','Tata Steel','Metals & Mining'],['NESTLEIND','Nestle India','FMCG'],['WIPRO','Wipro','IT'],['TECHM','Tech Mahindra','IT'],['HINDALCO','Hindalco','Metals & Mining'],['GRASIM','Grasim','Construction Materials'],['CIPLA','Cipla','Healthcare'],['DRREDDY','Dr Reddys','Healthcare'],['EICHERMOT','Eicher Motors','Auto'],['BAJAJ-AUTO','Bajaj Auto','Auto'],['HEROMOTOCO','Hero MotoCorp','Auto'],['APOLLOHOSP','Apollo Hospitals','Healthcare'],['BRITANNIA','Britannia','FMCG'],['SBILIFE','SBI Life','Financial Services'],['HDFCLIFE','HDFC Life','Financial Services'],['TRENT','Trent','Consumer Services'],['INDUSINDBK','IndusInd Bank','Financial Services'],['SHRIRAMFIN','Shriram Finance','Financial Services'],['BEL','Bharat Electronics','Capital Goods'],['TATACONSUMER','Tata Consumer','FMCG'],['JIOFIN','Jio Financial','Financial Services'],['INDIGO','InterGlobe Aviation','Services']];
+
+// ---------- state ----------
+const DEF={uni:'nifty500',ctf:'1D',side:'above',lmode:'next',comb:'any',view:'sector',
+ lv:{L3:[],R3:[],S1:[],R1:[]},ma:{d20:'off',d50:'off',d200:'off',w20:'off',w200:'off'},mas:null,
+ mtf:undefined,scans:['pivot'],scomb:'any',ibtf:'1D',vcp:{pole:30,depth:20,minb:5,maxb:40,req:8},worker:'',auto:'0'};
+let S=JSON.parse(JSON.stringify(DEF));
+try{S=JSON.parse(JSON.stringify(Object.assign({},DEF,JSON.parse(localStorage.cps_state||'{}'))))}catch(e){}
+function fixS(){
+  if(!Array.isArray(S.mas)){const old=S.ma||{};S.mas=DEFMAS.map(m=>({id:m.id,type:m.type,n:m.n,tf:m.tf,mode:MAMODES.includes(old[m.k])?old[m.k]:'off'}))}
+  const seen=new Set();
+  S.mas=S.mas.filter(m=>m&&typeof m==='object').map((m,i)=>{
+    let id=String(m.id||'');if(!id||seen.has(id))id='m'+Date.now().toString(36)+i;seen.add(id);
+    return{id,type:['sma','ema','hma'].includes(m.type)?m.type:'sma',n:Math.round(cl(m.n,2,500,20)),tf:['1D','1W','1M'].includes(m.tf)?m.tf:'1D',mode:MAMODES.includes(m.mode)?m.mode:'off'}});
+  const lv={};for(const k of Object.keys(DEF.lv))lv[k]=Array.isArray((S.lv||{})[k])?S.lv[k].filter(t=>LTF.some(x=>x[0]===t)):[];S.lv=lv;
+  S.scans=(Array.isArray(S.scans)?S.scans:['pivot']).filter((k,i,a)=>SCN[k]&&a.indexOf(k)===i);
+  if(!CTFV.includes(S.mtf)){ // migrate old settings: MA conditions used to live inside Pivot Scan
+    S.mtf=CTFV.includes(S.ctf)?S.ctf:'1D';
+    if(S.scans.includes('pivot')&&S.mas.some(m=>m.mode!=='off')){
+      if(!S.scans.includes('ma'))S.scans.push('ma');
+      if(Object.values(S.lv).some(a=>a.length))S.scomb='all'}}
+  S.scomb=S.scomb==='all'?'all':'any';
+  S.ibtf=['1D','1W','1M'].includes(S.ibtf)?S.ibtf:'1D';
+  const v=Object.assign({},DEF.vcp,S.vcp||{});
+  v.pole=cl(v.pole,5,300,30);v.depth=cl(v.depth,3,60,20);v.minb=Math.round(cl(v.minb,3,60,5));v.maxb=Math.round(cl(v.maxb,5,120,40));v.req=Math.round(cl(v.req,5,8,8));
+  if(v.minb>v.maxb)[v.minb,v.maxb]=[v.maxb,v.minb];
+  S.vcp=v}
+fixS();
+const openMA=new Set();
+const save=()=>{try{localStorage.cps_state=JSON.stringify(S)}catch(e){}};
+// ---------- saved settings (presets) ----------
+let PR=[];try{PR=JSON.parse(localStorage.cps_presets||'[]');if(!Array.isArray(PR))PR=[]}catch(e){PR=[]}
+const savePR=()=>{try{localStorage.cps_presets=JSON.stringify(PR)}catch(e){}};
+const PKEYS=['uni','ctf','mtf','lmode','side','comb','view','lv','mas','scans','scomb','ibtf','vcp'];
+const snap=()=>JSON.parse(JSON.stringify(Object.fromEntries(PKEYS.map(k=>[k,S[k]]))));
+function applyP(p){const x=JSON.parse(JSON.stringify(p.s||{}));
+  for(const k of PKEYS)if(x[k]!==undefined)S[k]=x[k];
+  if(x.mas===undefined&&x.ma){S.ma=x.ma;S.mas=null}
+  if(x.scans===undefined)S.scans=['pivot'];
+  if(x.mtf===undefined)S.mtf=undefined;
+  fixS();save()}
+(()=>{const d=PR.find(p=>p.d);if(d)applyP(d)})();
+let STK={};            // sym -> {n,sec,f:[flags]}
+const openSec=new Set();
+
+// ---------- proxy / data ----------
+function px(u){const w=(S.worker||'').trim().replace(/\/$/,'');return w?`${w}/?url=${encodeURIComponent(u)}`:'https://corsproxy.io/?url='+encodeURIComponent(u)}
+const YP={'1m':['1m','5d'],'5m':['5m','5d'],'15m':['15m','1mo'],'30m':['30m','1mo'],'1h':['60m','3mo'],'d':['1d','2y'],'w':['1wk','6y'],'m':['1mo','25y']};
+const isIntra=k=>['1m','5m','15m','30m','1h'].includes(k);
+const cache=new Map(),inflight=new Map();
+async function base(sym,key){
+  const ck=sym+'|'+key,ttl=isIntra(key)?45e3:6e5,h=cache.get(ck);
+  if(h&&Date.now()-h.ts<ttl)return h.v;
+  if(inflight.has(ck))return inflight.get(ck);
+  const p=(async()=>{const[iv,rg]=YP[key];let err;
+    for(const host of['query1','query2']){try{
+      const u=`https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}.NS?interval=${iv}&range=${rg}&includePrePost=false`;
+      const r=await fetch(px(u));if(!r.ok)throw new Error('http '+r.status);
+      const j=await r.json();const res=j.chart&&j.chart.result&&j.chart.result[0];if(!res)throw new Error('nodata');
+      const q=res.indicators.quote[0],out=[];
+      (res.timestamp||[]).forEach((t,i)=>{if(q.close[i]!=null){const c=q.close[i];out.push({t,o:q.open[i]??c,h:q.high[i]??c,l:q.low[i]??c,c,v:(q.volume&&q.volume[i])||0})}});
+      cache.set(ck,{ts:Date.now(),v:out});return out}catch(e){err=e}}
+    throw err})();
+  inflight.set(ck,p);try{return await p}finally{inflight.delete(ck)}
+}
+function resample(b,kind){const out=[];let key=null,cur=null;
+  for(const x of b){const d=new Date((x.t+19800)*1000),y=d.getUTCFullYear(),m=d.getUTCMonth();
+    const k=kind==='y'?''+y:kind==='h'?y+'-'+(m/6|0):y+'-'+(m/3|0);
+    if(k!==key){key=k;cur={t:x.t,o:x.o,h:x.h,l:x.l,c:x.c,v:x.v||0};out.push(cur)}else{cur.h=Math.max(cur.h,x.h);cur.l=Math.min(cur.l,x.l);cur.c=x.c;cur.v+=x.v||0}}
+  return out}
+async function series(sym,tf){
+  const m={'1D':['d'],'1W':['w'],'1M':['m'],'1Q':['m','q'],'6M':['m','h'],'1Y':['m','y']}[tf];
+  if(!m)return base(sym,tf);
+  const b=await base(sym,m[0]);return m[1]?resample(b,m[1]):b}
+
+// ---------- maths ----------
+function levelsFrom(b){const{h,l,c}=b,r=h-l,P=(h+l+c)/3;
+  return{L3:c-r*1.1/4,R3:c+r*1.1/4,S1:2*P-h,R1:2*P-l,P}}
+function smaArr(c,n){const o=new Array(c.length).fill(null);let s=0;for(let i=0;i<c.length;i++){s+=c[i];if(i>=n)s-=c[i-n];if(i>=n-1)o[i]=s/n}return o}
+function wma(a,n){const o=new Array(a.length).fill(null);if(n<1)return o;const d=n*(n+1)/2;for(let i=n-1;i<a.length;i++){let t=0,ok=true;for(let k=0;k<n;k++){const v=a[i-n+1+k];if(v==null){ok=false;break}t+=v*(k+1)}if(ok)o[i]=t/d}return o}
+function maValue(b,type,n){const c=b.map(x=>x.c),L=c.length;
+  if(type==='sma'){if(L<n)return null;let t=0;for(let k=L-n;k<L;k++)t+=c[k];return t/n}
+  if(type==='ema'){if(L<n)return null;let e=0;for(let k=0;k<n;k++)e+=c[k];e/=n;const al=2/(n+1);for(let k=n;k<L;k++)e=c[k]*al+e*(1-al);return e}
+  if(type==='hma'){const h=Math.max(1,Math.floor(n/2)),q=Math.max(1,Math.round(Math.sqrt(n)));const w1=wma(c,h),w2=wma(c,n);const d=c.map((_,i)=>w1[i]!=null&&w2[i]!=null?2*w1[i]-w2[i]:null);return wma(d,q)[L-1]}
+  return null}
+const maName=m=>m.type.toUpperCase()+' '+m.n+' '+TFN[m.tf];
+const anyMA=()=>S.mas.some(m=>m.mode!=='off');
+const lvPairs=()=>Object.entries(S.lv).flatMap(([k,a])=>a.map(tf=>[k,tf]));
+const anyLv=()=>lvPairs().length>0;
+const activeScans=()=>S.scans.filter(k=>k==='pivot'?anyLv():k==='ma'?anyMA():true);
+
+// Stage 2 (daily bars)
+function stage2(d){
+  const n=d.length;if(n<222)return null;
+  const c=d.map(x=>x.c),s50=smaArr(c,50),s150=smaArr(c,150),s200=smaArr(c,200),i=n-1,p=c[i];
+  const w=d.slice(-252),lo52=Math.min(...w.map(x=>x.l)),hi52=Math.max(...w.map(x=>x.h));
+  const rules=[p>s150[i]&&p>s200[i],s150[i]>s200[i],s200[i]>s200[i-22],s50[i]>s150[i]&&s50[i]>s200[i],p>s50[i],p>=lo52*1.3,p>=hi52*.75];
+  return{ok:rules.every(Boolean),p,s50:s50[i],s150:s150[i],s200:s200[i],hi52,lo52,fromHi:(p/hi52-1)*100,aboveLo:(p/lo52-1)*100}}
+
+// Inside bar: latest candle(s) completely inside the mother candle's high-low
+function insideBar(b){
+  const n=b.length;if(n<3)return null;
+  const inside=(x,m)=>x.h<m.h&&x.l>m.l;
+  let k=n-2;if(!inside(b[n-1],b[k]))return null;
+  while(k-1>=0&&n-1-(k-1)<=6){const m=b[k-1];let all=true;for(let j=k;j<n;j++)if(!inside(b[j],m)){all=false;break}if(all)k--;else break}
+  const s=Math.max(0,k-7);
+  return{m:b[k],babies:n-1-k,cmp:b[n-1].c,ctx:b.slice(s),mi:k-s}}
+
+// Stage 2 VCP / perfect flag (daily bars)
+function vcpCheck(d,P){
+  const n=d.length;if(n<260)return null;
+  const c=d.map(x=>x.c),h=d.map(x=>x.h),l=d.map(x=>x.l),v=d.map(x=>x.v||0),s50=smaArr(c,50),s200=smaArr(c,200),i=n-1;
+  const avg=(a,i0,i1)=>{if(i1<=i0)return 0;let s=0;for(let k=i0;k<i1;k++)s+=a[k];return s/(i1-i0)};
+  const rg=k=>(h[k]-l[k])/c[k]*100,avgR=(i0,i1)=>{let s=0;for(let k=i0;k<i1;k++)s+=rg(k);return i1>i0?s/(i1-i0):0};
+  // flag top = highest high of the last 60 bars; base = bars after it
+  let hi=n-60,hv=-Infinity;for(let k=n-60;k<n;k++)if(h[k]>=hv){hv=h[k];hi=k}
+  const bd=n-1-hi;
+  let bl=Infinity;for(let k=hi+1;k<n;k++)if(l[k]<bl)bl=l[k];if(bl===Infinity)bl=l[hi];
+  const depth=(hv-bl)/hv*100;
+  // prior uptrend (pole): from the lowest low in the 80 bars before the top
+  const ps=Math.max(0,hi-80);let pl=Infinity,pi=ps;for(let k=ps;k<=hi;k++)if(l[k]<pl){pl=l[k];pi=k}
+  const pole=(hv-pl)/pl*100;
+  let path=0;for(let k=pi+1;k<=hi;k++)path+=Math.abs(c[k]-c[k-1]);
+  const er=path>0?Math.abs(c[hi]-c[pi])/path:0;
+  let worst=0;for(let k=pi+1;k<=hi;k++)worst=Math.min(worst,c[k]/c[k-1]-1);
+  // volume
+  const poleVol=avg(v,pi,hi+1),ps0=Math.max(0,pi-50),preVol=pi-ps0>=10?avg(v,ps0,pi):avg(v,Math.max(0,n-120),n);
+  let val50=0;for(let k=n-50;k<n;k++)val50+=c[k]*v[k];val50/=50;
+  // range contraction
+  const poleRg=avgR(pi,hi+1),baseRg=avgR(bd>0?hi+1:hi,n);let maxRg=0;for(let k=hi+1;k<n;k++)maxRg=Math.max(maxRg,rg(k));
+  // young trend: completed pullbacks (>=8%) since the stock last closed below SMA 200
+  let st=199;for(let k=n-1;k>=199;k--){if(c[k]<s200[k]){st=k+1;break}}
+  let flags=0;if(st<hi){let runHi=c[st],dd=false;for(let k=st;k<hi;k++){if(c[k]>runHi){if(dd){flags++;dd=false}runHi=c[k]}else if((runHi-c[k])/runHi>=.08)dd=true}}
+  // volume contraction left to right
+  const half=Math.floor(bd/2);
+  const vc=bd>=4&&half>=2&&avg(v,n-half,n)<avg(v,hi+1,hi+1+half)&&avg(v,n-5,n)<avg(v,n-50,n);
+  const s2=stage2(d);
+  const R=[['Stage 2 uptrend',!!(s2&&s2.ok)],
+    ['Strong & smooth uptrend',pole>=P.pole&&er>=.25&&worst>=-.07],
+    ['Good volume activity',poleVol>=1.1*preVol&&val50>=3e7],
+    ['Orderly pullback',bd>0&&baseRg<=poleRg&&baseRg<=4.5&&maxRg<=8],
+    ['Base depth within limit',depth<=P.depth],
+    ['Constructive base',bd>=P.minb&&bd<=P.maxb&&c[i]>s50[i]&&c[i]>=(hv+bl)/2],
+    ['Young trend (1st/2nd flag)',flags<=1],
+    ['Volume contraction',vc]];
+  const pass=R.filter(x=>x[1]).length;
+  return{ok:pass>=P.req,pass,R,depth,pole,bd,flag:flags+1}}
+
+async function evalPivot(sym){
+  const r={ok:false,hits:[]};
+  const cs=await series(sym,S.ctf);
+  if(cs.length<2)return r;
+  const n=cs.length,last=cs[n-1].c,prev=cs[n-2].c,up=S.side==='above';
+  const crossed=(p,c,v)=>up?(p<=v&&c>v):(p>=v&&c<v);
+  let lvOk=true;
+  const act=lvPairs();
+  if(act.length){
+    const tfs=[...new Set(act.map(p=>p[1]))],LV={};
+    for(const tf of tfs){
+      const ls=await series(sym,tf);
+      const src=S.lmode==='next'?ls[ls.length-1]:ls[ls.length-2];
+      if(src)LV[tf]=levelsFrom(src)}
+    if(!Object.keys(LV).length)return r;
+    const res=act.map(([k,tf])=>{const L=LV[tf];if(!L)return false;const ok=crossed(prev,last,L[k]);if(ok)r.hits.push({t:'lv',k,tf,v:L[k]});return ok});
+    lvOk=S.comb==='any'?res.some(Boolean):res.every(Boolean);
+  }
+  r.ok=lvOk;
+  return r}
+
+async function evalMA(sym){
+  const r={ok:false,hits:[]};
+  const cs=await series(sym,S.mtf);
+  if(cs.length<2)return r;
+  const n=cs.length,last=cs[n-1].c,prev=cs[n-2].c;
+  let maOk=true;
+  for(const m of S.mas){if(m.mode==='off')continue;
+    const ms=await series(sym,m.tf);
+    const a=maValue(ms,m.type,m.n);
+    if(a==null){maOk=false;continue}
+    // Close = Latest Close timeframe chosen above; MA = the MA's own timeframe, type and period
+    const mode=m.mode;
+    const ok=mode==='xa'?(prev<=a&&last>a)
+            :mode==='xb'?(prev>=a&&last<a)
+            :mode==='gte'?(last>=a)
+            :mode==='lte'?(last<=a):false;
+    if(ok)r.hits.push({t:'ma',k:m.id,name:maName(m),v:a,mode});else maOk=false}
+  r.ok=maOk;
+  return r}
+
+async function evalStock(st){
+  const sym=st.s,o={st,res:{},ok:false,n:0},act=activeScans();
+  const dly=await series(sym,'1D');
+  if(dly.length<2){o.err='data';return o}
+  o.price=dly[dly.length-1].c;o.chg=(o.price/dly[dly.length-2].c-1)*100;
+  await Promise.all(act.map(async k=>{
+    if(k==='pivot')o.res.pivot=await evalPivot(sym);
+    else if(k==='ma')o.res.ma=await evalMA(sym);
+    else if(k==='s2'){const s=stage2(dly);o.res.s2=s?{ok:s.ok,s2:s}:{ok:false}}
+    else if(k==='ib'){const ib=insideBar(await series(sym,S.ibtf));o.res.ib=ib?{ok:true,ib}:{ok:false}}
+    else if(k==='vcp'){const v=vcpCheck(dly,S.vcp);o.res.vcp=v?{ok:v.ok,v}:{ok:false}}}));
+  o.n=act.filter(k=>o.res[k]&&o.res[k].ok).length;
+  o.ok=S.scomb==='all'?o.n===act.length:o.n>0;
+  return o}
+
+// ---------- universe ----------
+function parseCSV(t){return t.split(/\r?\n/).filter(l=>l.trim()).map(l=>{const o=[];let c='',q=false;for(const ch of l){if(ch==='"')q=!q;else if(ch===','&&!q){o.push(c.trim());c=''}else c+=ch}o.push(c.trim());return o})}
+const NOTSTK=new Set(['NIFTY','BANKNIFTY','FINNIFTY','MIDCPNIFTY','NIFTYNXT50','SYMBOL']);
+async function loadUniverse(force){
+  const us=$('#ustat');
+  let c;try{c=JSON.parse(localStorage.cps_uni||'null')}catch(e){}
+  if(!force&&c&&Date.now()-c.ts<6048e5){STK=c.d;us.textContent=`Stock list: ${Object.keys(STK).length} stocks (saved)`;return}
+  const d={};const bad=[];let okc=0;
+  for(const[k,alts]of Object.entries(LISTS)){
+    let done=false;
+    for(const urls of alts){
+      if(done)break;
+      try{
+        us.textContent='Loading: '+k+' …';
+        const part={};
+        for(const u of urls){
+          const r=await fetch(px(u));if(!r.ok)throw 0;
+          const rows=parseCSV(await r.text());
+          const hd=rows.findIndex(r=>r.some(x=>/^symbol$/i.test(x)));if(hd<0)throw 0;
+          const H=rows[hd].map(x=>x.trim().toUpperCase());
+          const iS=H.indexOf('SYMBOL'),iN=H.findIndex(x=>x==='COMPANY NAME'||x==='NAME OF COMPANY'||x==='UNDERLYING'),iI=H.indexOf('INDUSTRY'),iR=H.indexOf('SERIES');
+          let n=0;
+          for(const r of rows.slice(hd+1)){
+            const s=(r[iS]||'').trim();if(!s||NOTSTK.has(s)||/\s/.test(s))continue;
+            if(k==='all'&&iR>=0&&(r[iR]||'').trim()!=='EQ')continue;
+            const o=part[s]||(part[s]={n:'',sec:''});
+            if(!o.n&&iN>=0)o.n=r[iN]||s;
+            if(iI>=0&&r[iI]&&!o.sec)o.sec=ALIAS[r[iI]]||r[iI];
+            n++}
+          if(!n)throw 0}
+        for(const[s,v]of Object.entries(part)){
+          const o=d[s]||(d[s]={n:'',sec:'',f:[]});
+          if(!o.n)o.n=v.n;if(!o.sec)o.sec=v.sec;
+          if(!o.f.includes(k))o.f.push(k)}
+        done=true;okc++}catch(e){}
+    }
+    if(!done)bad.push(k)}
+  if(!okc){FALLBACK.forEach(([s,n,sec])=>d[s]={n,sec,f:['nifty50','nifty200','nifty500','fno','all']});
+    us.textContent='⚠ NSE lists not found, running on the built-in Nifty 50 only. Enter the Worker URL and tap 🔄.'}
+  else us.textContent=`Stock list: ${Object.keys(d).length} stocks${bad.length?' · not found: '+bad.join(', '):''}`;
+  Object.values(d).forEach(o=>{if(!o.sec)o.sec='Unclassified'});
+  STK=d;if(okc)try{localStorage.cps_uni=JSON.stringify({ts:Date.now(),d})}catch(e){}}
+function universe(){return Object.entries(STK).filter(([s,o])=>o.f.includes(S.uni)).map(([s,o])=>({s,n:o.n||s,sec:o.sec}))}
+
+// ---------- UI ----------
+const fmt=n=>n==null?'-':n.toLocaleString('en-IN',{maximumFractionDigits:2});
+const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const chip=(g,v,l,on,cls='')=>`<button class="chip ${cls} ${on?'on':''}" data-g="${g}" data-v="${v}">${l}</button>`;
+function drawMAs(){
+  const el=$('#ma');if(!el)return;
+  el.innerHTML=S.mas.map(m=>{const o=openMA.has(m.id);
+    return `<div class="marow ${m.mode!=='off'?'on':''}"><div class="mah" data-m="tog" data-id="${m.id}"><b>${maName(m)} · ${m.mode==='off'?'Off':MAT[m.mode]}</b><span>${o?'▾':'▸'}</span></div>${o?`<div class="mab">
+<div class="lab">Type</div><div class="chips">${MATYPES.map(([v,t])=>`<button class="chip sm ${m.type===v?'on':''}" data-m="type" data-id="${m.id}" data-v="${v}">${t}</button>`).join('')}</div>
+<div class="lab">Period (number of candles)</div><input type="number" inputmode="numeric" min="2" max="500" value="${m.n}" data-m="n" data-id="${m.id}">
+<div class="lab">MA chart timeframe</div><div class="chips">${MATF.map(([v,t])=>`<button class="chip sm ${m.tf===v?'on':''}" data-m="tf" data-id="${m.id}" data-v="${v}">${t}</button>`).join('')}</div>
+<div class="lab">Condition</div><select data-m="mode" data-id="${m.id}">${MAOPT.map(([v,t])=>`<option value="${v}"${m.mode===v?' selected':''}>${t}</option>`).join('')}</select>
+<div class="tools" style="margin:10px 0 0"><button class="ib" data-m="del" data-id="${m.id}">🗑 Remove this MA</button></div></div>`:''}</div>`}).join('')}
+function drawPresets(){
+  const el=$('#plist');if(!el)return;
+  el.innerHTML=PR.length?PR.map((p,i)=>`<div class="prow ${p.d?'dflt':''}"><button class="chip" data-p="load" data-i="${i}">${esc(p.n)}</button><button class="ib" data-p="upd" data-i="${i}">💾 Update</button><button class="ib" data-p="def" data-i="${i}">${p.d?'⭐':'☆'}</button><button class="ib" data-p="del" data-i="${i}">🗑</button></div>`).join(''):'<div class="note">No saved settings yet. Pick your settings below and tap 💾.</div>'}
+function drawControls(){drawPresets();
+  $('#scans').innerHTML=SCANS.map(([k,l])=>chip('scan',k,l,S.scans.includes(k))).join('');
+  $('#scomb').innerHTML=chip('scomb','any','Any selected (OR)',S.scomb==='any','sm')+chip('scomb','all','All selected (AND)',S.scomb==='all','sm');
+  $('#scnote').textContent=S.scans.includes('pivot')&&!anyLv()?'Pivot Scan: pick at least one level timeframe.':S.scans.includes('ma')&&!anyMA()?'MA Scan: set a condition on at least one MA.':S.scans.length>1?(S.scomb==='all'?'Showing only stocks that match ALL selected scans.':'Showing stocks that match ANY selected scan. Stocks matching several are marked ★ and listed first.'):'';
+  $('#uni').innerHTML=UNI.map(([v,l])=>chip('uni',v,l,S.uni===v)).join('');
+  $('#view').innerHTML=chip('view','sector','Sector-wise',S.view==='sector','sm')+chip('view','list','List',S.view==='list','sm');
+  $('#ctf').innerHTML=CTF.map(([v,l])=>chip('ctf',v,l,S.ctf===v)).join('');
+  $('#mtf').innerHTML=CTF.map(([v,l])=>chip('mtf',v,l,S.mtf===v)).join('');
+  $('#lv').innerHTML=Object.entries(LVN).map(([k,l])=>`<div class="lvr"><div class="lvn">${l}</div><div class="chips">${LTF.map(([v,n])=>`<button class="chip lv sm ${S.lv[k].includes(v)?'on':''}" data-g="lv" data-l="${k}" data-v="${v}">${n}</button>`).join('')}</div></div>`).join('');
+  $('#side').innerHTML=chip('side','above','Crossed Above',S.side==='above','sm')+chip('side','below','Crossed Below',S.side==='below','sm');
+  $('#lmode').innerHTML=chip('lmode','next','Next period',S.lmode==='next','sm')+chip('lmode','cur','Current period',S.lmode==='cur','sm');
+  $('#comb').innerHTML=chip('comb','any','Any (OR)',S.comb==='any','sm')+chip('comb','all','All (AND)',S.comb==='all','sm');
+  $('#ibtf').innerHTML=MATF.map(([v,l])=>chip('ibtf',v,l,S.ibtf===v)).join('');
+  $('#vcpset').innerHTML=[['pole','Min prior run-up % (pole)'],['depth','Max base depth %'],['minb','Min base days'],['maxb','Max base days']].map(([k,l])=>`<div>${l}<input type="number" inputmode="decimal" data-vp="${k}" value="${S.vcp[k]}"></div>`).join('');
+  $('#vreq').innerHTML=[8,7,6,5].map(n=>chip('vreq',n,n+' of 8',S.vcp.req===n,'sm')).join('');
+  for(const[k]of SCANS)$('#bx-'+k).style.display=S.scans.includes(k)?'':'none';
+  drawMAs();
+  $('#worker').value=S.worker||'';$('#auto').value=S.auto||'0'}
+let qt;const queueScan=()=>{clearTimeout(qt);qt=setTimeout(scan,250)};
+document.addEventListener('click',e=>{
+  const mb=e.target.closest('[data-m]');
+  if(mb){const id=mb.dataset.id,a=mb.dataset.m,m=S.mas.find(x=>x.id===id);
+    if(a==='tog'){openMA.has(id)?openMA.delete(id):openMA.add(id);drawMAs()}
+    else if(m&&a==='type'){m.type=mb.dataset.v;save();drawMAs();if(m.mode!=='off')queueScan()}
+    else if(m&&a==='tf'){m.tf=mb.dataset.v;save();drawMAs();if(m.mode!=='off')queueScan()}
+    else if(m&&a==='del'){if(confirm('Remove '+maName(m)+'?')){S.mas=S.mas.filter(x=>x!==m);openMA.delete(id);save();drawMAs();queueScan()}}
+    return}
+  const pb=e.target.closest('[data-p]');
+  if(pb){const i=+pb.dataset.i,a=pb.dataset.p,p=PR[i];
+    if(a==='load'&&p){applyP(p);drawControls();queueScan();window.scrollTo({top:0,behavior:'smooth'})}
+    else if(a==='upd'&&p){if(confirm('Overwrite "'+p.n+'" with the current settings?')){p.s=snap();savePR();drawPresets()}}
+    else if(a==='def'&&p){const was=p.d;PR.forEach(x=>x.d=false);p.d=!was;savePR();drawPresets()}
+    else if(a==='del'&&p){if(confirm('Delete "'+p.n+'"?')){PR.splice(i,1);savePR();drawPresets()}}
+    return}
+  const b=e.target.closest('[data-g]');
+  if(b){const g=b.dataset.g,v=b.dataset.v;
+    if(g==='lv'){const a=S.lv[b.dataset.l],i=a.indexOf(v);i<0?a.push(v):a.splice(i,1)}
+    else if(g==='scan'){const i=S.scans.indexOf(v);i<0?S.scans.push(v):S.scans.splice(i,1)}
+    else if(g==='vreq')S.vcp.req=+v;
+    else S[g]=v;
+    save();drawControls();g==='view'?render():queueScan();return}
+  const h=e.target.closest('[data-sec]');
+  if(h){const k=h.dataset.sec;openSec.has(k)?openSec.delete(k):openSec.add(k);render();return}
+  const t=e.target.closest('[data-tool]');
+  if(t&&t.dataset.tool==='copy'){const l=[...results.values()].filter(r=>r.ok).map(r=>'NSE:'+r.st.s.replace(/[&-]/g,'_')).join(',');navigator.clipboard&&navigator.clipboard.writeText(l);t.textContent='✅ Copied'}
+  if(t&&t.dataset.tool==='all'){const secs=new Set([...document.querySelectorAll('[data-sec]')].map(x=>x.dataset.sec));const allOpen=[...secs].every(x=>openSec.has(x));secs.forEach(x=>allOpen?openSec.delete(x):openSec.add(x));render()}
+});
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.vp){S.vcp[t.dataset.vp]=+t.value;fixS();save();drawControls();queueScan();return}
+  const id=t.dataset.id,a=t.dataset.m;if(!a||!id)return;const m=S.mas.find(x=>x.id===id);if(!m)return;
+  if(a==='mode'){m.mode=t.value;save();drawMAs();queueScan()}
+  else if(a==='n'){m.n=Math.round(cl(t.value,2,500,m.n));save();drawMAs();if(m.mode!=='off')queueScan()}});
+$('#maadd').onclick=()=>{const id='m'+Date.now().toString(36);S.mas.push({id,type:'sma',n:20,tf:'1D',mode:'off'});openMA.add(id);save();drawMAs()};
+$('#psave').onclick=()=>{
+  const n=(prompt('Name for this setting (e.g. Monthly L3 + SMA20)')||'').trim();if(!n)return;
+  const old=PR.findIndex(p=>p.n===n);
+  if(old>=0){if(!confirm('"'+n+'" already exists. Replace it?'))return;PR[old].s=snap()}
+  else PR.push({n,s:snap(),d:false});
+  savePR();drawPresets()};
+$('#gear').onclick=()=>$('#set').classList.toggle('show');
+$('#worker').onchange=e=>{S.worker=e.target.value;save()};
+$('#auto').onchange=e=>{S.auto=e.target.value;save();setAuto()};
+$('#reload').onclick=async()=>{await loadUniverse(true);queueScan()};
+let at;function setAuto(){clearInterval(at);const m=+S.auto;if(m)at=setInterval(()=>{if(!document.hidden)scan()},m*6e4)}
+
+// ---------- scan & render ----------
+let scanId=0,results=new Map(),prog={done:0,total:0,err:0},rt;
+const sched=()=>{if(!rt)rt=setTimeout(()=>{rt=null;render()},300)};
+async function scan(){
+  const id=++scanId,list=universe();
+  results=new Map();prog={done:0,total:list.length,err:0};
+  if(!activeScans().length||!list.length){render();return}
+  let i=0;const N=(S.worker||'').trim()?16:6;
+  const run=async()=>{while(id===scanId){const k=i++;if(k>=list.length)break;const st=list[k];
+    try{const r=await evalStock(st);if(id!==scanId)return;results.set(st.s,r);if(r.err)prog.err++}
+    catch(e){if(id!==scanId)return;prog.err++;results.set(st.s,{st,err:String(e),res:{},n:0})}
+    prog.done++;sched()}};
+  await Promise.all(Array.from({length:N},run));
+  if(id===scanId){prog.t=new Date();render()}}
+function miniChart(ib){
+  const bars=ib.ctx,N=bars.length,W=320,H=170,L=8,R=104,T=16,B=12;
+  let hi=Math.max(...bars.map(x=>x.h)),lo=Math.min(...bars.map(x=>x.l));
+  const pad=(hi-lo)*.1||1;hi+=pad;lo-=pad;
+  const y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const cw=(W-L-R)/N,bw=Math.max(3,Math.min(18,cw*.62)),X=j=>L+cw*j+cw/2;
+  const m=ib.m,cmp=ib.cmp,mi=ib.mi,xr=W-R+4;
+  let s=`<svg class="mini" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Inside bar mini chart">`;
+  s+=`<rect class="hm" x="${X(mi)-cw/2}" y="${T-6}" width="${cw}" height="${H-T-B+10}" rx="3"/>`;
+  s+=`<rect class="hb" x="${X(mi+1)-cw/2}" y="${T-6}" width="${cw*(N-mi-1)}" height="${H-T-B+10}" rx="3"/>`;
+  s+=`<line class="lnb" x1="${L}" x2="${xr}" y1="${y(m.h)}" y2="${y(m.h)}"/>`;
+  s+=`<line class="lnl" x1="${L}" x2="${xr}" y1="${y(m.l)}" y2="${y(m.l)}"/>`;
+  s+=`<line class="lnc" x1="${X(N-1)}" x2="${xr}" y1="${y(cmp)}" y2="${y(cmp)}"/>`;
+  bars.forEach((b,j)=>{const cls=b.c>=b.o?'cu':'cd',x=X(j),yt=y(Math.max(b.o,b.c)),yb=y(Math.min(b.o,b.c));
+    s+=`<line class="${cls}" x1="${x}" x2="${x}" y1="${y(b.h)}" y2="${y(b.l)}"/><rect class="${cls}" x="${x-bw/2}" y="${yt}" width="${bw}" height="${Math.max(1.5,yb-yt)}"/>`});
+  s+=`<circle class="dc" cx="${X(N-1)}" cy="${y(cmp)}" r="2.8"/>`;
+  s+=`<text class="tm" x="${X(mi)}" y="10" text-anchor="middle">M</text>`;
+  for(let j=mi+1;j<N;j++)s+=`<text class="tm" x="${X(j)}" y="10" text-anchor="middle">B</text>`;
+  const lab=[{y:y(m.h),t:'BUY '+fmt(m.h),c:'tb'},{y:y(cmp),t:'CMP '+fmt(cmp),c:'tc'},{y:y(m.l),t:'LOW '+fmt(m.l),c:'tl'}].sort((a,b)=>a.y-b.y);
+  for(let k=1;k<lab.length;k++)if(lab[k].y<lab[k-1].y+12)lab[k].y=lab[k-1].y+12;
+  lab.forEach(o=>s+=`<text class="${o.c}" x="${W-R+10}" y="${o.y+3.5}">${o.t}</text>`);
+  return s+'</svg>'}
+function pivotBadges(p){const up=S.side==='above',ar=up?'▲':'▼';
+  return p.hits.map(h=>h.t==='lv'
+    ?`<span class="b ${up?'':'d'}">${ar} ${LTFS[h.tf]} ${S.lmode==='next'?'Next':'Cur'} ${LVN[h.k]} <i>${fmt(h.v)}</i></span>`
+    :`<span class="b ${(h.mode==='xb'||h.mode==='lte')?'d':''}">${MAT[h.mode]} ${h.name} <i>${fmt(h.v)}</i></span>`).join('')}
+function row(r){
+  const act=activeScans(),c=r.chg>=0?'up':'dn',R=r.res;
+  const tags=act.filter(k=>R[k]&&R[k].ok).map(k=>`<span class="tg">${SCN[k]}</span>`).join('');
+  const star=act.length>1&&r.n>=2?`<span class="tg st">★ ${r.n}/${act.length} confirmations</span>`:'';
+  let bs='',x='';
+  if(R.pivot&&R.pivot.ok)bs+=pivotBadges(R.pivot);
+  if(R.ma&&R.ma.ok)bs+=pivotBadges(R.ma);
+  if(R.s2&&R.s2.ok){const s=R.s2.s2;bs+=`<span class="b m">52W High ${pct(s.fromHi)}</span><span class="b m">52W Low ${pct(s.aboveLo)}</span><span class="b m">SMA 50/150/200 <i>${fmt(s.s50)} / ${fmt(s.s150)} / ${fmt(s.s200)}</i></span>`}
+  if(R.vcp&&R.vcp.ok){const v=R.vcp.v;bs+=`<span class="b">Rules ${v.pass}/8</span><span class="b m">Pole +${v.pole.toFixed(0)}%</span><span class="b m">Base ${v.bd}d · depth ${v.depth.toFixed(1)}%</span><span class="b m">Flag #${v.flag}</span>`+v.R.filter(q=>!q[1]).map(q=>`<span class="b d">✘ ${q[0]}</span>`).join('')}
+  if(R.ib&&R.ib.ok){const ib=R.ib.ib;
+    bs+=`<span class="b">Inside Bar · ${TFN[S.ibtf]}${ib.babies>1?' · '+ib.babies+' babies':''}</span><span class="b">BUY above Mother High <i>${fmt(ib.m.h)}</i></span><span class="b d">Mother Low <i>${fmt(ib.m.l)}</i></span><span class="b m">CMP <i>${fmt(ib.cmp)}</i> (between Mother Low and High)</span>`;
+    x=miniChart(ib)+'<div class="note">M = Mother candle · B = Baby (inside) candle · dashed green = buy line (Mother High) · dashed red = Mother Low · blue = current price</div>'}
+  return `<div class="r"><div class="rl"><a href="https://in.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(r.st.s)}" target="_blank" rel="noopener">${esc(r.st.s)}</a><small>${esc(r.st.n)}</small><div class="bs">${tags}${star}</div><div class="bs">${bs}</div></div><div class="pr"><b>${fmt(r.price)}</b><small class="${c}">${r.chg>=0?'+':''}${r.chg.toFixed(2)}%</small></div>${x?`<div class="rx">${x}</div>`:''}</div>`}
+const byRank=(a,b)=>b.n-a.n||b.chg-a.chg;
+function render(){
+  const list=universe(),act=activeScans(),all=[...results.values()],hit=all.filter(r=>r.ok);
+  $('#bar i').style.width=(prog.total?prog.done/prog.total*100:0)+'%';
+  if(!act.length){
+    $('#status').innerHTML='<span>Select a scan and its conditions above</span>';$('#counts').innerHTML='';$('#tools').innerHTML='';
+    $('#res').innerHTML='<div class="msg">Results appear instantly once you select a condition.</div>';return}
+  $('#status').innerHTML=`<span>Scanned ${prog.done}/${prog.total} · Errors ${prog.err}${prog.t?' · '+prog.t.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):''}</span><span><b class="up">${hit.length} matched</b></span>`;
+  $('#counts').innerHTML=act.map(k=>`<span class="cn">${SCN[k]} <b>${all.filter(r=>r.res&&r.res[k]&&r.res[k].ok).length}</b></span>`).join('')+(act.length>1?`<span class="cn st">★ All ${act.length} scans <b>${all.filter(r=>r.n===act.length).length}</b></span>`:'');
+  $('#tools').innerHTML=hit.length?`<button class="ib" data-tool="copy">📋 Copy TradingView list</button>`+(S.view==='sector'?`<button class="ib" data-tool="all">⇅ Expand / collapse all</button>`:''):'';
+  if(S.view==='list'){
+    hit.sort(byRank);
+    $('#res').innerHTML=hit.length?`<div class="sec">${hit.map(row).join('')}</div>`:`<div class="msg">${prog.done<prog.total?'Scanning…':'No stocks found'}</div>`;return}
+  const tot={},got={};
+  list.forEach(s=>tot[s.sec]=(tot[s.sec]||0)+1);
+  hit.forEach(r=>(got[r.st.sec]=got[r.st.sec]||[]).push(r));
+  const secs=Object.keys(tot).sort((a,b)=>(got[b]?.length||0)-(got[a]?.length||0)||a.localeCompare(b));
+  $('#res').innerHTML=secs.map(s=>{const g=got[s]||[],o=openSec.has(s);g.sort(byRank);
+    return `<div class="sec ${g.length?'':'zero'}"><div class="sh" data-sec="${esc(s)}"><b>${o?'▾':'▸'} ${esc(s)}</b><span class="cnt ${g.length?'hit':''}">${g.length} / ${tot[s]}</span></div>${o?`<div class="rows">${g.length?g.map(row).join(''):'<div class="msg" style="margin:10px">No stocks in this sector</div>'}</div>`:''}</div>`}).join('')}
+
+// ---------- boot ----------
+(async()=>{
+  drawControls();$('#res').innerHTML='<div class="msg">Loading stock list…</div>';
+  await loadUniverse(false);setAuto();scan();
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})
+})();
+</script>
+</body>
+</html>
