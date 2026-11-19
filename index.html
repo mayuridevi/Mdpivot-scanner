@@ -164,6 +164,14 @@ select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);bo
   <label>Rules required to pass</label><div class="chips" id="vreq"></div>
 </section>
 
+<section class="panel" id="bx-vol">
+  <div class="ttl">Volume Spike</div>
+  <label>Latest candle timeframe</label><div class="chips" id="vtf"></div>
+  <label>Spike = latest candle volume is at least this many times its average volume</label><div class="chips" id="vmult"></div>
+  <div class="mag" style="margin-top:8px"><div>Average volume period (SMA of the previous candles)<input type="number" inputmode="numeric" data-vv="n" id="vn"></div><div>Candle colour<div class="chips" id="vgreen"></div></div></div>
+  <div class="note">Latest candle volume ÷ average volume of the previous N candles (SMA, the latest candle is not included). For a candle that is still forming (15 min, 1 hour, today's Daily) the volume so far is counted, so a spike may appear later in the candle.</div>
+</section>
+
 <div id="status"></div>
 <div id="counts"></div>
 <div id="bar"><i></i></div>
@@ -174,7 +182,7 @@ select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);bo
 const $=s=>document.querySelector(s);
 const cl=(x,a,b,d)=>{x=+x;return isFinite(x)?Math.min(b,Math.max(a,x)):d};
 const LVN={L3:'Camarilla L3',R3:'Camarilla R3',S1:'Pivot S1',R1:'Pivot R1'};
-const SCANS=[['pivot','Pivot Scan'],['ma','MA Scan'],['s2','Stage 2'],['ib','Inside Bar'],['vcp','Stage 2 VCP']];
+const SCANS=[['pivot','Pivot Scan'],['ma','MA Scan'],['s2','Stage 2'],['ib','Inside Bar'],['vcp','Stage 2 VCP'],['vol','Volume Spike']];
 const SCN=Object.fromEntries(SCANS);
 const UNI=[['nifty50','Nifty 50'],['nifty200','Nifty 200'],['nifty500','Nifty 500'],['midcap250','Midcap 250'],['smallcap250','Smallcap 250'],['fno','F&O'],['all','All NSE']];
 const CTF=[['1m','1 min'],['5m','5 min'],['15m','15 min'],['30m','30 min'],['1h','1 hour'],['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
@@ -203,7 +211,7 @@ const FALLBACK=[['RELIANCE','Reliance Industries','Oil & Gas'],['TCS','TCS','IT'
 // ---------- state ----------
 const DEF={uni:'nifty500',ctf:'1D',side:'above',lmode:'next',comb:'any',view:'sector',
  lv:{L3:[],R3:[],S1:[],R1:[]},ma:{d20:'off',d50:'off',d200:'off',w20:'off',w200:'off'},mas:null,
- mtf:undefined,scans:['pivot'],scomb:'any',ibtf:'1D',ibmode:'form',pmode:'cross',mmode:'cross',vcp:{pole:30,depth:20,minb:5,maxb:40,req:8},worker:'',auto:'0'};
+ mtf:undefined,scans:['pivot'],scomb:'any',ibtf:'1D',vtf:'1D',vol:{n:20,mult:2,green:0},ibmode:'form',pmode:'cross',mmode:'cross',vcp:{pole:30,depth:20,minb:5,maxb:40,req:8},worker:'',auto:'0'};
 let S=JSON.parse(JSON.stringify(DEF));
 try{S=JSON.parse(JSON.stringify(Object.assign({},DEF,JSON.parse(localStorage.cps_state||'{}'))))}catch(e){}
 function fixS(){
@@ -222,6 +230,8 @@ function fixS(){
   S.scomb=S.scomb==='all'?'all':'any';
   S.ibtf=['1D','1W','1M'].includes(S.ibtf)?S.ibtf:'1D';
   S.ibmode=S.ibmode==='brk'?'brk':'form';
+  S.vtf=CTFV.includes(S.vtf)?S.vtf:'1D';
+  {const o=Object.assign({},DEF.vol,S.vol||{});o.n=Math.round(cl(o.n,3,200,20));o.mult=cl(o.mult,1,50,2);o.green=o.green?1:0;S.vol=o}
   S.pmode=S.pmode==='touch'?'touch':'cross';S.mmode=S.mmode==='touch'?'touch':'cross';
   const v=Object.assign({},DEF.vcp,S.vcp||{});
   v.pole=cl(v.pole,5,300,30);v.depth=cl(v.depth,3,60,20);v.minb=Math.round(cl(v.minb,3,60,5));v.maxb=Math.round(cl(v.maxb,5,120,40));v.req=Math.round(cl(v.req,5,8,8));
@@ -233,7 +243,7 @@ const save=()=>{try{localStorage.cps_state=JSON.stringify(S)}catch(e){}};
 // ---------- saved settings (presets) ----------
 let PR=[];try{PR=JSON.parse(localStorage.cps_presets||'[]');if(!Array.isArray(PR))PR=[]}catch(e){PR=[]}
 const savePR=()=>{try{localStorage.cps_presets=JSON.stringify(PR)}catch(e){}};
-const PKEYS=['uni','ctf','mtf','lmode','side','comb','view','lv','mas','scans','scomb','ibtf','ibmode','pmode','mmode','vcp'];
+const PKEYS=['uni','ctf','mtf','lmode','side','comb','view','lv','mas','scans','scomb','ibtf','vtf','vol','ibmode','pmode','mmode','vcp'];
 const snap=()=>JSON.parse(JSON.stringify(Object.fromEntries(PKEYS.map(k=>[k,S[k]]))));
 function applyP(p){const x=JSON.parse(JSON.stringify(p.s||{}));
   for(const k of PKEYS)if(x[k]!==undefined)S[k]=x[k];
@@ -313,6 +323,17 @@ function insideBar(b){
   while(k-1>=0&&n-1-(k-1)<=6){const m=b[k-1];let all=true;for(let j=k;j<n;j++)if(!inside(b[j],m)){all=false;break}if(all)k--;else break}
   const s=Math.max(0,k-7);
   return{m:b[k],babies:n-1-k,cmp:b[n-1].c,ctx:b.slice(s),mi:k-s}}
+
+async function evalVol(sym){
+  const b=await series(sym,S.vtf),N=S.vol.n,n=b.length;
+  if(n<N+2)return{ok:false};
+  const last=b[n-1];let sum=0,cnt=0;
+  for(let i=n-1-N;i<n-1;i++){const v=b[i].v;if(v!=null&&v>=0){sum+=v;cnt++}}
+  const avg=cnt?sum/cnt:0;
+  if(!(avg>0)||last.v==null)return{ok:false};
+  const ratio=last.v/avg,green=last.c>last.o;
+  return{ok:ratio>=S.vol.mult&&(!S.vol.green||green),vol:{v:last.v,avg,ratio,green,n:N}}}
+const fvol=x=>x>=1e7?(x/1e7).toFixed(2)+' Cr':x>=1e5?(x/1e5).toFixed(2)+' L':x>=1e3?(x/1e3).toFixed(1)+' K':String(Math.round(x));
 
 // Stage 2 VCP / perfect flag (daily bars)
 function vcpCheck(d,P){
@@ -408,6 +429,7 @@ async function evalStock(st){
     else if(k==='ma')o.res.ma=await evalMA(sym);
     else if(k==='s2'){const s=stage2(dly);o.res.s2=s?{ok:s.ok,s2:s}:{ok:false}}
     else if(k==='ib'){const ibs=await series(sym,S.ibtf),ib=S.ibmode==='brk'?insideBrk(ibs):insideBar(ibs);o.res.ib=ib?{ok:true,ib}:{ok:false}}
+    else if(k==='vol')o.res.vol=await evalVol(sym);
     else if(k==='vcp'){const v=vcpCheck(dly,S.vcp);o.res.vcp=v?{ok:v.ok,v}:{ok:false}}}));
   o.n=act.filter(k=>o.res[k]&&o.res[k].ok).length;
   o.ok=S.scomb==='all'?o.n===act.length:o.n>0;
@@ -492,6 +514,10 @@ function drawControls(){drawPresets();
   $('#ibmode').innerHTML=chip('ibmode','form','Inside bar formed',S.ibmode==='form','sm')+chip('ibmode','brk','Last candle high broken (breakout)',S.ibmode==='brk','sm');
   $('#ibtf').innerHTML=MATF.map(([v,l])=>chip('ibtf',v,l,S.ibtf===v)).join('');
   $('#vcpset').innerHTML=[['pole','Min prior run-up % (pole)'],['depth','Max base depth %'],['minb','Min base days'],['maxb','Max base days']].map(([k,l])=>`<div>${l}<input type="number" inputmode="decimal" data-vp="${k}" value="${S.vcp[k]}"></div>`).join('');
+  $('#vtf').innerHTML=CTF.map(([v,l])=>chip('vtf',v,l,S.vtf===v)).join('');
+  $('#vmult').innerHTML=[1.5,2,3,5].map(m=>chip('vmult',m,m+'×',S.vol.mult===m,'sm')).join('');
+  $('#vgreen').innerHTML=chip('vgreen',0,'Any',!S.vol.green,'sm')+chip('vgreen',1,'Green only (close > open)',!!S.vol.green,'sm');
+  $('#vn').value=S.vol.n;
   $('#vreq').innerHTML=[8,7,6,5].map(n=>chip('vreq',n,n+' of 8',S.vcp.req===n,'sm')).join('');
   for(const[k]of SCANS)$('#bx-'+k).style.display=S.scans.includes(k)?'':'none';
   drawMAs();
@@ -517,6 +543,8 @@ document.addEventListener('click',e=>{
     if(g==='lv'){const a=S.lv[b.dataset.l],i=a.indexOf(v);i<0?a.push(v):a.splice(i,1)}
     else if(g==='scan'){const i=S.scans.indexOf(v);i<0?S.scans.push(v):S.scans.splice(i,1)}
     else if(g==='vreq')S.vcp.req=+v;
+    else if(g==='vmult')S.vol.mult=+v;
+    else if(g==='vgreen')S.vol.green=+v;
     else S[g]=v;
     save();drawControls();g==='view'?render():queueScan();return}
   const h=e.target.closest('[data-sec]');
@@ -526,6 +554,7 @@ document.addEventListener('click',e=>{
   if(t&&t.dataset.tool==='all'){const secs=new Set([...document.querySelectorAll('[data-sec]')].map(x=>x.dataset.sec));const allOpen=[...secs].every(x=>openSec.has(x));secs.forEach(x=>allOpen?openSec.delete(x):openSec.add(x));render()}
 });
 document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.vv){S.vol[t.dataset.vv]=+t.value;fixS();save();drawControls();queueScan();return}
   if(t.dataset.vp){S.vcp[t.dataset.vp]=+t.value;fixS();save();drawControls();queueScan();return}
   const id=t.dataset.id,a=t.dataset.m;if(!a||!id)return;const m=S.mas.find(x=>x.id===id);if(!m)return;
   if(a==='mode'){m.mode=t.value;save();drawMAs();queueScan()}
@@ -592,6 +621,7 @@ function row(r){
   if(R.pivot&&R.pivot.ok)bs+=pivotBadges(R.pivot);
   if(R.ma&&R.ma.ok)bs+=pivotBadges(R.ma);
   if(R.s2&&R.s2.ok){const s=R.s2.s2;bs+=`<span class="b m">52W High ${pct(s.fromHi)}</span><span class="b m">52W Low ${pct(s.aboveLo)}</span><span class="b m">SMA 50/150/200 <i>${fmt(s.s50)} / ${fmt(s.s150)} / ${fmt(s.s200)}</i></span>`}
+  if(R.vol&&R.vol.ok){const q=R.vol.vol;bs+=`<span class="b">Volume ${q.ratio.toFixed(1)}× avg(${q.n})</span><span class="b m">Vol <i>${fvol(q.v)}</i> vs avg <i>${fvol(q.avg)}</i></span><span class="b ${q.green?'':'d'}">${q.green?'Green':'Red'} candle · ${(CTF.find(x=>x[0]===S.vtf)||[0,S.vtf])[1]}</span>`}
   if(R.vcp&&R.vcp.ok){const v=R.vcp.v;bs+=`<span class="b">Rules ${v.pass}/8</span><span class="b m">Pole +${v.pole.toFixed(0)}%</span><span class="b m">Base ${v.bd}d · depth ${v.depth.toFixed(1)}%</span><span class="b m">Flag #${v.flag}</span>`+v.R.filter(q=>!q[1]).map(q=>`<span class="b d">✘ ${q[0]}</span>`).join('')}
   if(R.ib&&R.ib.ok){const ib=R.ib.ib;
     bs+=`<span class="b">Inside Bar · ${TFN[S.ibtf]}${ib.babies>1?' · '+ib.babies+' babies':''}</span>${ib.trig?`<span class="b">BREAKOUT above last inside candle high <i>${fmt(ib.trig)}</i></span><span class="b m">Mother High <i>${fmt(ib.m.h)}</i></span>`:`<span class="b">BUY above Mother High <i>${fmt(ib.m.h)}</i></span>`}<span class="b d">Mother Low <i>${fmt(ib.m.l)}</i></span><span class="b m">CMP <i>${fmt(ib.cmp)}</i>${ib.trig?'':' (between Mother Low and High)'}</span>`;
