@@ -88,6 +88,18 @@ select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);bo
 .mini .tl{fill:var(--dn)}
 .mini .tc{fill:var(--acc);font-weight:700}
 .mini .tm{fill:var(--mut);font-weight:700}
+.mini .lvc{stroke:#f59e0b;stroke-dasharray:4 3;stroke-width:1;opacity:.7}
+.mini .lvp{stroke:#a78bfa;stroke-dasharray:4 3;stroke-width:1;opacity:.7}
+.mini .lvh{stroke-dasharray:none;stroke-width:1.8;opacity:1}
+.mini .tvc{fill:#f59e0b}
+.mini .tvp{fill:#a78bfa}
+.mini .tvh{font-weight:700}
+.ptb{width:100%;max-width:380px;border-collapse:collapse;margin-top:6px;font-size:11.5px;text-align:center}
+.ptb th,.ptb td{border:1px solid var(--line);padding:3px 4px}
+.ptb th{color:var(--mut);font-weight:700}
+.ptb td.hit{font-weight:800;background:rgba(255,255,255,.07)}
+.dl{display:inline-flex;gap:6px;flex-wrap:wrap;vertical-align:middle}
+.dsh{display:inline-flex;align-items:center;gap:2px}
 </style>
 </head>
 <body>
@@ -188,6 +200,9 @@ const UNI=[['nifty50','Nifty 50'],['nifty200','Nifty 200'],['nifty500','Nifty 50
 const CTF=[['1m','1 min'],['5m','5 min'],['15m','15 min'],['30m','30 min'],['1h','1 hour'],['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
 const CTFV=CTF.map(x=>x[0]);
 const LTF=[['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
+const ALLTF=['1D','1W','1M','1Q','6M','1Y'];
+const LVCOL={L3:'#5cc8ff',R3:'#ff7eb8',S1:'#86efac',R1:'#fb923c'};
+const TFDASH={'1D':'','1W':'7 3','1M':'11 3 2 3','1Q':'2 3','6M':'14 4','1Y':'1 2.5'};
 const LTFS={'1D':'D','1W':'W','1M':'M','1Q':'Q','6M':'H','1Y':'Y'};
 const MAT={xa:'▲ Crossed Above',xb:'▼ Crossed Below',gte:'≥',lte:'≤'};
 const MAMODES=['off','xa','xb','gte','lte'];
@@ -391,10 +406,20 @@ async function evalPivot(sym){
       const src=S.lmode==='next'?ls[ls.length-1]:ls[ls.length-2];
       if(src)LV[tf]=levelsFrom(src)}
     if(!Object.keys(LV).length)return r;
+    r._LV=LV;
     const res=act.map(([k,tf])=>{const L=LV[tf];if(!L)return false;const ok=touch?touching(L[k]):crossed(prev,last,L[k]);if(ok)r.hits.push({t:'lv',k,tf,v:L[k],touch});return ok});
     lvOk=S.comb==='any'?res.some(Boolean):res.every(Boolean);
   }
   r.ok=lvOk;
+  if(lvOk&&act.length){
+    const lv=[];
+    for(const tf of ALLTF){
+      let ls;try{ls=await series(sym,tf)}catch(e){continue}
+      const src=S.lmode==='next'?ls[ls.length-1]:ls[ls.length-2];if(!src)continue;
+      const L=levelsFrom(src);
+      for(const k of ['L3','R3','S1','R1'])lv.push({k,tf,v:L[k],hit:r.hits.some(h=>h.t==='lv'&&h.k===k&&h.tf===tf)})}
+    r.map={bars:cs.slice(-14),cmp:last,lv}}
+  delete r._LV;
   return r}
 
 async function evalMA(sym){
@@ -609,6 +634,20 @@ function miniChart(ib){
   for(let k=1;k<lab.length;k++)if(lab[k].y<lab[k-1].y+12)lab[k].y=lab[k-1].y+12;
   lab.forEach(o=>s+=`<text class="${o.c}" x="${W-R+10}" y="${o.y+3.5}">${o.t}</text>`);
   return s+'</svg>'}
+function pivotMap(m){
+  const W=340,H=270,T=14,B=10,x0=86,LEN={'1D':24,'1W':48,'1M':72,'1Q':96,'6M':120,'1Y':144},cmp=m.cmp;
+  let hi=Math.max(cmp,...m.lv.map(l=>l.v)),lo=Math.min(cmp,...m.lv.map(l=>l.v));
+  const pad=(hi-lo)*.04||1;hi+=pad;lo-=pad;
+  const y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  let s=`<svg class="mini" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Levels vs current price">`;
+  s+=`<line x1="8" x2="${W-6}" y1="${y(cmp)}" y2="${y(cmp)}" stroke="#2f9bff" stroke-width=".8" stroke-dasharray="1 3" opacity=".7"/>`;
+  m.lv.forEach(l=>{s+=`<line x1="${x0}" x2="${x0+LEN[l.tf]}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${LVCOL[l.k]}" stroke-width="${l.hit?3:1.8}" stroke-linecap="round"/>`});
+  s+=`<circle cx="22" cy="${y(cmp)}" r="5" fill="#2f9bff" stroke="#fff" stroke-width="1.4"/>`;
+  s+=`<text x="32" y="${y(cmp)-8}" fill="#2f9bff" font-weight="700">${fmt(cmp)}</text>`;
+  const lab=m.lv.map(l=>({y:y(l.v),x:x0+LEN[l.tf]+5,t:`${LTFS[l.tf]} ${fmt(l.v)}`,f:LVCOL[l.k],b:l.hit})).sort((a,b)=>a.y-b.y);
+  for(let k=1;k<lab.length;k++)if(lab[k].y<lab[k-1].y+9.5)lab[k].y=lab[k-1].y+9.5;
+  lab.forEach(o=>s+=`<rect x="${o.x-1}" y="${o.y-6}" width="${o.t.length*5.6+3}" height="9.5" rx="2" fill="#0e1529" opacity=".85"/><text x="${o.x}" y="${o.y+2}" fill="${o.f}" ${o.b?'font-weight="700"':''}>${o.t}</text>`);
+  return s+`</svg><div class="note"><b style="color:${LVCOL.L3}">Camarilla L3</b> · <b style="color:${LVCOL.R3}">Camarilla R3</b> · <b style="color:${LVCOL.S1}">Pivot S1</b> · <b style="color:${LVCOL.R1}">Pivot R1</b> · line length short→long = D, W, M, Q, H, Y · blue dot = current price · thick = matched · ${S.lmode==='next'?'Next':'Current'} period</div>`}
 function pivotBadges(p){const up=S.side==='above',ar=up?'▲':'▼';
   return p.hits.map(h=>h.t==='lv'
     ?`<span class="b ${h.touch||up?'':'d'}">${h.touch?'◆ Touching':ar} ${LTFS[h.tf]} ${S.lmode==='next'?'Next':'Cur'} ${LVN[h.k]} <i>${fmt(h.v)}</i></span>`
@@ -618,14 +657,14 @@ function row(r){
   const tags=act.filter(k=>R[k]&&R[k].ok).map(k=>`<span class="tg">${SCN[k]}</span>`).join('');
   const star=act.length>1&&r.n>=2?`<span class="tg st">★ ${r.n}/${act.length} confirmations</span>`:'';
   let bs='',x='';
-  if(R.pivot&&R.pivot.ok)bs+=pivotBadges(R.pivot);
+  if(R.pivot&&R.pivot.ok){bs+=pivotBadges(R.pivot);if(R.pivot.map)x+=pivotMap(R.pivot.map)}
   if(R.ma&&R.ma.ok)bs+=pivotBadges(R.ma);
   if(R.s2&&R.s2.ok){const s=R.s2.s2;bs+=`<span class="b m">52W High ${pct(s.fromHi)}</span><span class="b m">52W Low ${pct(s.aboveLo)}</span><span class="b m">SMA 50/150/200 <i>${fmt(s.s50)} / ${fmt(s.s150)} / ${fmt(s.s200)}</i></span>`}
   if(R.vol&&R.vol.ok){const q=R.vol.vol;bs+=`<span class="b">Volume ${q.ratio.toFixed(1)}× avg(${q.n})</span><span class="b m">Vol <i>${fvol(q.v)}</i> vs avg <i>${fvol(q.avg)}</i></span><span class="b ${q.green?'':'d'}">${q.green?'Green':'Red'} candle · ${(CTF.find(x=>x[0]===S.vtf)||[0,S.vtf])[1]}</span>`}
   if(R.vcp&&R.vcp.ok){const v=R.vcp.v;bs+=`<span class="b">Rules ${v.pass}/8</span><span class="b m">Pole +${v.pole.toFixed(0)}%</span><span class="b m">Base ${v.bd}d · depth ${v.depth.toFixed(1)}%</span><span class="b m">Flag #${v.flag}</span>`+v.R.filter(q=>!q[1]).map(q=>`<span class="b d">✘ ${q[0]}</span>`).join('')}
   if(R.ib&&R.ib.ok){const ib=R.ib.ib;
     bs+=`<span class="b">Inside Bar · ${TFN[S.ibtf]}${ib.babies>1?' · '+ib.babies+' babies':''}</span>${ib.trig?`<span class="b">BREAKOUT above last inside candle high <i>${fmt(ib.trig)}</i></span><span class="b m">Mother High <i>${fmt(ib.m.h)}</i></span>`:`<span class="b">BUY above Mother High <i>${fmt(ib.m.h)}</i></span>`}<span class="b d">Mother Low <i>${fmt(ib.m.l)}</i></span><span class="b m">CMP <i>${fmt(ib.cmp)}</i>${ib.trig?'':' (between Mother Low and High)'}</span>`;
-    x=miniChart(ib)+'<div class="note">M = Mother candle · B = Baby (inside) candle · dashed green = buy line (Mother High) · dashed red = Mother Low · blue = current price</div>'}
+    x+=miniChart(ib)+'<div class="note">M = Mother candle · B = Baby (inside) candle · dashed green = buy line (Mother High) · dashed red = Mother Low · blue = current price</div>'}
   return `<div class="r"><div class="rl"><a href="https://in.tradingview.com/chart/?symbol=NSE:${encodeURIComponent(r.st.s)}" target="_blank" rel="noopener">${esc(r.st.s)}</a><small>${esc(r.st.n)}</small><div class="bs">${tags}${star}</div><div class="bs">${bs}</div></div><div class="pr"><b>${fmt(r.price)}</b><small class="${c}">${r.chg>=0?'+':''}${r.chg.toFixed(2)}%</small></div>${x?`<div class="rx">${x}</div>`:''}</div>`}
 const byRank=(a,b)=>b.n-a.n||b.chg-a.chg;
 function render(){
