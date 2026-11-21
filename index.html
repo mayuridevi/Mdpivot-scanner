@@ -140,6 +140,7 @@ select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);bo
   <label>Latest Close timeframe</label><div class="chips" id="ctf"></div>
   <label>Match when</label><div class="chips" id="pmode"></div>
   <div class="note" id="pmnote"></div>
+  <label>Price used for the crossing (instead of Close)</label><div class="chips" id="psrc"></div>
   <label>Conditions: tap a timeframe under each level and that timeframe's level is checked (you can select several)</label><div id="lv"></div>
   <div class="mag" style="margin-top:10px">
     <div>Direction<div class="chips" id="side"></div></div>
@@ -152,6 +153,7 @@ select,input[type=text],input[type=number]{background:#0e1529;color:var(--tx);bo
   <div class="ttl">MA Scan</div>
   <label>Latest Close timeframe</label><div class="chips" id="mtf"></div>
   <label>Match when (for Crossed Above / Below conditions)</label><div class="chips" id="mmode"></div>
+  <label>Price used for the comparison (instead of Close)</label><div class="chips" id="msrc"></div>
   <label>Moving Average filters: tap an MA to open its options. Close is taken from the Latest Close timeframe above. All MAs with a condition must match together.</label>
   <div id="ma"></div>
   <div class="tools" style="margin:8px 0 0"><button class="ib" id="maadd">➕ Add another MA</button></div>
@@ -200,6 +202,7 @@ const UNI=[['nifty50','Nifty 50'],['nifty200','Nifty 200'],['nifty500','Nifty 50
 const CTF=[['1m','1 min'],['5m','5 min'],['15m','15 min'],['30m','30 min'],['1h','1 hour'],['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
 const CTFV=CTF.map(x=>x[0]);
 const LTF=[['1D','Daily'],['1W','Weekly'],['1M','Monthly'],['1Q','Quarterly'],['6M','Half-yearly'],['1Y','Yearly']];
+const SRCK=['c','h','l','o'],SRCN={c:'Close',h:'High',l:'Low',o:'Open'};
 const ALLTF=['1D','1W','1M','1Q','6M','1Y'];
 const LVCOL={L3:'#5cc8ff',R3:'#ff7eb8',S1:'#86efac',R1:'#fb923c'};
 const TFDASH={'1D':'','1W':'7 3','1M':'11 3 2 3','1Q':'2 3','6M':'14 4','1Y':'1 2.5'};
@@ -226,7 +229,7 @@ const FALLBACK=[['RELIANCE','Reliance Industries','Oil & Gas'],['TCS','TCS','IT'
 // ---------- state ----------
 const DEF={uni:'nifty500',ctf:'1D',side:'above',lmode:'next',comb:'any',view:'sector',
  lv:{L3:[],R3:[],S1:[],R1:[]},ma:{d20:'off',d50:'off',d200:'off',w20:'off',w200:'off'},mas:null,
- mtf:undefined,scans:['pivot'],scomb:'any',ibtf:'1D',vtf:'1D',vol:{n:20,mult:2,green:0},ibmode:'form',pmode:'cross',mmode:'cross',vcp:{pole:30,depth:20,minb:5,maxb:40,req:8},worker:'',auto:'0'};
+ mtf:undefined,scans:['pivot'],scomb:'any',ibtf:'1D',vtf:'1D',vol:{n:20,mult:2,green:0},ibmode:'form',pmode:'cross',mmode:'cross',psrc:'c',msrc:'c',vcp:{pole:30,depth:20,minb:5,maxb:40,req:8},worker:'',auto:'0'};
 let S=JSON.parse(JSON.stringify(DEF));
 try{S=JSON.parse(JSON.stringify(Object.assign({},DEF,JSON.parse(localStorage.cps_state||'{}'))))}catch(e){}
 function fixS(){
@@ -247,7 +250,7 @@ function fixS(){
   S.ibmode=S.ibmode==='brk'?'brk':'form';
   S.vtf=CTFV.includes(S.vtf)?S.vtf:'1D';
   {const o=Object.assign({},DEF.vol,S.vol||{});o.n=Math.round(cl(o.n,3,200,20));o.mult=cl(o.mult,1,50,2);o.green=o.green?1:0;S.vol=o}
-  S.pmode=S.pmode==='touch'?'touch':'cross';S.mmode=S.mmode==='touch'?'touch':'cross';
+  S.psrc=SRCK.includes(S.psrc)?S.psrc:'c';S.msrc=SRCK.includes(S.msrc)?S.msrc:'c';S.pmode=S.pmode==='touch'?'touch':'cross';S.mmode=S.mmode==='touch'?'touch':'cross';
   const v=Object.assign({},DEF.vcp,S.vcp||{});
   v.pole=cl(v.pole,5,300,30);v.depth=cl(v.depth,3,60,20);v.minb=Math.round(cl(v.minb,3,60,5));v.maxb=Math.round(cl(v.maxb,5,120,40));v.req=Math.round(cl(v.req,5,8,8));
   if(v.minb>v.maxb)[v.minb,v.maxb]=[v.maxb,v.minb];
@@ -258,7 +261,7 @@ const save=()=>{try{localStorage.cps_state=JSON.stringify(S)}catch(e){}};
 // ---------- saved settings (presets) ----------
 let PR=[];try{PR=JSON.parse(localStorage.cps_presets||'[]');if(!Array.isArray(PR))PR=[]}catch(e){PR=[]}
 const savePR=()=>{try{localStorage.cps_presets=JSON.stringify(PR)}catch(e){}};
-const PKEYS=['uni','ctf','mtf','lmode','side','comb','view','lv','mas','scans','scomb','ibtf','vtf','vol','ibmode','pmode','mmode','vcp'];
+const PKEYS=['uni','ctf','mtf','lmode','side','comb','view','lv','mas','scans','scomb','ibtf','vtf','vol','ibmode','pmode','mmode','psrc','msrc','vcp'];
 const snap=()=>JSON.parse(JSON.stringify(Object.fromEntries(PKEYS.map(k=>[k,S[k]]))));
 function applyP(p){const x=JSON.parse(JSON.stringify(p.s||{}));
   for(const k of PKEYS)if(x[k]!==undefined)S[k]=x[k];
@@ -394,7 +397,7 @@ async function evalPivot(sym){
   const r={ok:false,hits:[]};
   const cs=await series(sym,S.ctf);
   if(cs.length<2)return r;
-  const n=cs.length,last=cs[n-1].c,prev=cs[n-2].c,up=S.side==='above';
+  const n=cs.length,pk=S.psrc,last=cs[n-1][pk],prev=cs[n-2][pk],up=S.side==='above';
   const crossed=(p,c,v)=>up?(p<=v&&c>v):(p>=v&&c<v);
   const lb=cs[n-1],touch=S.pmode==='touch',touching=v=>lb.l<=v&&v<=lb.h;
   let lvOk=true;
@@ -407,7 +410,7 @@ async function evalPivot(sym){
       if(src)LV[tf]=levelsFrom(src)}
     if(!Object.keys(LV).length)return r;
     r._LV=LV;
-    const res=act.map(([k,tf])=>{const L=LV[tf];if(!L)return false;const ok=touch?touching(L[k]):crossed(prev,last,L[k]);if(ok)r.hits.push({t:'lv',k,tf,v:L[k],touch});return ok});
+    const res=act.map(([k,tf])=>{const L=LV[tf];if(!L)return false;const ok=touch?touching(L[k]):crossed(prev,last,L[k]);if(ok)r.hits.push({t:'lv',k,tf,v:L[k],touch,src:pk});return ok});
     lvOk=S.comb==='any'?res.some(Boolean):res.every(Boolean);
   }
   r.ok=lvOk;
@@ -418,7 +421,7 @@ async function evalPivot(sym){
       const src=S.lmode==='next'?ls[ls.length-1]:ls[ls.length-2];if(!src)continue;
       const L=levelsFrom(src);
       for(const k of ['L3','R3','S1','R1'])lv.push({k,tf,v:L[k],hit:r.hits.some(h=>h.t==='lv'&&h.k===k&&h.tf===tf)})}
-    r.map={bars:cs.slice(-14),cmp:last,lv}}
+    r.map={bars:cs.slice(-14),cmp:cs[n-1].c,lv}}
   delete r._LV;
   return r}
 
@@ -426,7 +429,7 @@ async function evalMA(sym){
   const r={ok:false,hits:[]};
   const cs=await series(sym,S.mtf);
   if(cs.length<2)return r;
-  const n=cs.length,last=cs[n-1].c,prev=cs[n-2].c;
+  const n=cs.length,mk=S.msrc,last=cs[n-1][mk],prev=cs[n-2][mk];
   let maOk=true;
   for(const m of S.mas){if(m.mode==='off')continue;
     const ms=await series(sym,m.tf);
@@ -440,7 +443,7 @@ async function evalMA(sym){
             :mode==='xb'?(prev>=a&&last<a)
             :mode==='gte'?(last>=a)
             :mode==='lte'?(last<=a):false;
-    if(ok)r.hits.push({t:'ma',k:m.id,name:maName(m),v:a,mode,touch:tch});else maOk=false}
+    if(ok)r.hits.push({t:'ma',k:m.id,name:maName(m),v:a,mode,touch:tch,src:mk});else maOk=false}
   r.ok=maOk;
   return r}
 
@@ -529,8 +532,9 @@ function drawControls(){drawPresets();
   $('#view').innerHTML=chip('view','sector','Sector-wise',S.view==='sector','sm')+chip('view','list','List',S.view==='list','sm');
   $('#ctf').innerHTML=CTF.map(([v,l])=>chip('ctf',v,l,S.ctf===v)).join('');
   const MM=(k,v)=>chip(k,'cross','Crossed (previous close → latest close)',v==='cross','sm')+chip(k,'touch','Current candle is touching the level',v==='touch','sm');
-  $('#pmode').innerHTML=MM('pmode',S.pmode);$('#mmode').innerHTML=MM('mmode',S.mmode);
-  $('#pmnote').textContent=S.pmode==='touch'?'Shows the stock right now while the latest candle (of the timeframe above, e.g. 15 min / 1 hour) is trading through the level: candle Low ≤ level ≤ candle High. Direction is ignored.':'Shows a stock only if the previous candle closed on one side of the level and the latest candle closed on the other side.';
+  $('#psrc').innerHTML=SRCK.map(k=>chip('psrc',k,SRCN[k],S.psrc===k,'sm')).join('');$('#msrc').innerHTML=SRCK.map(k=>chip('msrc',k,SRCN[k],S.msrc===k,'sm')).join('');
+  $('#pmode').innerHTML=MM('pmode',S.pmode);$('#psrc').style.opacity=S.pmode==='touch'?.4:1;$('#mmode').innerHTML=MM('mmode',S.mmode);
+  $('#pmnote').textContent=S.pmode==='touch'?'Shows the stock right now while the latest candle (of the timeframe above, e.g. 15 min / 1 hour) is trading through the level: candle Low ≤ level ≤ candle High. Direction is ignored The price option below does not apply here.':'Shows a stock only if the previous candle was on one side of the level and the latest candle is on the other side, using the price chosen below (Close by default).';
   $('#mtf').innerHTML=CTF.map(([v,l])=>chip('mtf',v,l,S.mtf===v)).join('');
   $('#lv').innerHTML=Object.entries(LVN).map(([k,l])=>`<div class="lvr"><div class="lvn">${l}</div><div class="chips">${LTF.map(([v,n])=>`<button class="chip lv sm ${S.lv[k].includes(v)?'on':''}" data-g="lv" data-l="${k}" data-v="${v}">${n}</button>`).join('')}</div></div>`).join('');
   $('#side').innerHTML=chip('side','above','Crossed Above',S.side==='above','sm')+chip('side','below','Crossed Below',S.side==='below','sm');
@@ -653,8 +657,8 @@ function pivotMap(m){
   return s+`</svg><div class="note"><b style="color:${LVCOL.L3}">Camarilla L3</b> · <b style="color:${LVCOL.R3}">Camarilla R3</b> · <b style="color:${LVCOL.S1}">Pivot S1</b> · <b style="color:${LVCOL.R1}">Pivot R1</b> · line length short→long = D, W, M, Q, H, Y · blue dot = current price · dotted line + dot = level near the current price · thick = matched · ${S.lmode==='next'?'Next':'Current'} period</div>`}
 function pivotBadges(p){const up=S.side==='above',ar=up?'▲':'▼';
   return p.hits.map(h=>h.t==='lv'
-    ?`<span class="b ${h.touch||up?'':'d'}">${h.touch?'◆ Touching':ar} ${LTFS[h.tf]} ${S.lmode==='next'?'Next':'Cur'} ${LVN[h.k]} <i>${fmt(h.v)}</i></span>`
-    :`<span class="b ${(!h.touch&&(h.mode==='xb'||h.mode==='lte'))?'d':''}">${h.touch?'◆ Touching':MAT[h.mode]} ${h.name} <i>${fmt(h.v)}</i></span>`).join('')}
+    ?`<span class="b ${h.touch||up?'':'d'}">${h.touch?'◆ Touching':(h.src&&h.src!=='c'?SRCN[h.src]+' ':'')+ar} ${LTFS[h.tf]} ${S.lmode==='next'?'Next':'Cur'} ${LVN[h.k]} <i>${fmt(h.v)}</i></span>`
+    :`<span class="b ${(!h.touch&&(h.mode==='xb'||h.mode==='lte'))?'d':''}">${h.touch?'◆ Touching':(h.src&&h.src!=='c'?SRCN[h.src]+' ':'')+MAT[h.mode]} ${h.name} <i>${fmt(h.v)}</i></span>`).join('')}
 function row(r){
   const act=activeScans(),c=r.chg>=0?'up':'dn',R=r.res;
   const tags=act.filter(k=>R[k]&&R[k].ok).map(k=>`<span class="tg">${SCN[k]}</span>`).join('');
